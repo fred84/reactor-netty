@@ -216,9 +216,18 @@ final class TcpServerBind extends TcpServer {
 
 		@Override
 		public void onStateChange(Connection connection, State newState) {
-			if (newState == State.DISCONNECTING) {
-				if (connection.channel()
-				              .isActive() && !connection.isPersistent()) {
+			Channel channel = connection.channel();
+			if (newState == State.CONNECTED) {
+				channel.parent()
+				       .closeFuture()
+				       .addListener(future -> {
+				           if (channel.isActive()) {
+				               connection.dispose();
+				           }
+				       });
+			}
+			else if (newState == State.DISCONNECTING) {
+				if (channel.isActive() && !connection.isPersistent()) {
 					connection.dispose();
 				}
 			}

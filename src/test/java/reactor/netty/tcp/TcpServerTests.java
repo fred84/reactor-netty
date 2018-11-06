@@ -849,6 +849,31 @@ public class TcpServerTests {
 		latch.await(30, TimeUnit.SECONDS);
 	}
 
+	@Test
+	public void testIssue495() {
+		MonoProcessor<Void> serverConnDisposed = MonoProcessor.create();
+
+		DisposableServer boundServer =
+				TcpServer.create()
+				         .port(0)
+				         .doOnConnection(serverConnection ->
+				                 serverConnection.onDispose()
+				                                 .subscribe(serverConnDisposed))
+				         .wiretap(true)
+				         .bindNow();
+
+		Connection clientConnection =
+				TcpClient.create()
+				         .addressSupplier(boundServer::address)
+				         .wiretap(true)
+				         .connectNow();
+
+		boundServer.disposeNow();
+		serverConnDisposed.block(Duration.ofSeconds(5));
+
+		clientConnection.disposeNow();
+	}
+
 	private static class SimpleClient extends Thread {
 		private final int port;
 		private final CountDownLatch latch;
